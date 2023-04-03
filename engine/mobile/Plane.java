@@ -30,10 +30,10 @@ public class Plane extends MobileElement {
     private String name;
     private boolean emergency;
     private int posCollision;
-    public  BufferedImage planePic;
+    private BufferedImage planePic;
     public static BufferedImage AirpPic;
 
-     static {
+    static {
         try {
             AirpPic = ImageIO.read(new File("images/airport.png"));
         } catch (IOException e) {
@@ -53,8 +53,8 @@ public class Plane extends MobileElement {
         this.speed = speed;
         this.boucle = false;
         this.iterBoucle = 0;
-        close=0;
-        this.planePic=p1;
+        close = 0;
+        this.planePic = p1;
     }
 
     public Plane(String name, Airport airport, Airport destination, int speed) throws IOException {
@@ -67,9 +67,9 @@ public class Plane extends MobileElement {
         this.boucle = false;
         this.iterBoucle = 0;
         this.path = "images/plane.png";
-        this.planePic=p1;
+        this.planePic = p1;
 
-        close=0;
+        close = 0;
     }
 
     public BufferedImage getPlanePic() {
@@ -142,30 +142,6 @@ public class Plane extends MobileElement {
         this.name = name;
     }
 
-    public boolean CloseTo(Block block) {
-        return (block.getX() == position.getX() && block.getY() == position.getY() + 1)
-                || (block.getX() == position.getX() && block.getY() == position.getY() - 1)
-                || (block.getX() == position.getX() + 1 && block.getY() == position.getY())
-                || (block.getX() == position.getX() - 1 && block.getY() == position.getY())
-                || (block.getX() == position.getX() + 1 && block.getY() == position.getY() + 1)
-                || (block.getX() == position.getX() - 1 && block.getY() == position.getY() - 1)
-                || (block.getX() == position.getX() + 1 && block.getY() == position.getY() - 1)
-                || (block.getX() == position.getX() - 1 && block.getY() == position.getY() + 1);
-    }
-
-    public boolean CloseToPlane(List<Plane> planes, Plane plane) {
-        for (Plane p : planes) {
-            if (p != plane) {
-                if (p != null) {
-                    if (p.CloseTo(plane.getPosition())) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
     public int getTrajBlc() {
         return trajBlc;
     }
@@ -197,14 +173,6 @@ public class Plane extends MobileElement {
     public void setPosCollision(int posCollision) {
         this.posCollision = posCollision;
     }
-    public boolean isCloseToAnAirport(List<Airport> airports) {
-        for (Airport airport : airports) {
-            if (CloseTo(airport.getPosition())) {
-                return true;
-            }
-        }
-        return false;
-    }
 
     public int getCurrentAngle() {
         return currentAngle;
@@ -216,6 +184,52 @@ public class Plane extends MobileElement {
 
     public void setAngle(int angle) {
         this.currentAngle = angle;
+    }
+
+    public Rectangle getBoundingBox() {
+        return new Rectangle(position.getY(), position.getX(),
+                1, 1);
+    }
+
+    public void setEmergency(boolean b) {
+        this.emergency = b;
+    }
+
+    public boolean isEmergency() {
+        return emergency;
+    }
+
+    public boolean CloseTo(Block block) {
+        return (block.getX() == position.getX() && block.getY() == position.getY() + 1)
+                || (block.getX() == position.getX() && block.getY() == position.getY() - 1)
+                || (block.getX() == position.getX() + 1 && block.getY() == position.getY())
+                || (block.getX() == position.getX() - 1 && block.getY() == position.getY())
+                || (block.getX() == position.getX() + 1 && block.getY() == position.getY() + 1)
+                || (block.getX() == position.getX() - 1 && block.getY() == position.getY() - 1)
+                || (block.getX() == position.getX() + 1 && block.getY() == position.getY() - 1)
+                || (block.getX() == position.getX() - 1 && block.getY() == position.getY() + 1);
+    }
+
+    public boolean CloseToPlane(List<Plane> planes, Plane plane) {
+        for (Plane p : planes) {
+            if (p != plane) {
+                if (p != null) {
+                    if (p.CloseTo(plane.getPosition())) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    public boolean isCloseToAnAirport(List<Airport> airports) {
+        for (Airport airport : airports) {
+            if (CloseTo(airport.getPosition())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public void setAngle() {
@@ -242,25 +256,6 @@ public class Plane extends MobileElement {
                 currentAngle = 270;
             }
         }
-    }
-
-    public Block getHitbox() {
-        // the hitbox is bigger than the plane
-        Block hitbox = new Block(position.getX(), position.getY());
-        return hitbox;
-    }
-
-    public Rectangle getBoundingBox() {
-        return new Rectangle(position.getY(), position.getX(),
-                1, 1);
-    }
-
-    public void setEmergency(boolean b) {
-        this.emergency = b;
-    }
-
-    public boolean isEmergency() {
-        return emergency;
     }
 
 }

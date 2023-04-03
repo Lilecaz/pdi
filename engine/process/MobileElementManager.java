@@ -52,12 +52,14 @@ public class MobileElementManager {
         }
 
     }
+
     public boolean isCloseAndRaiseAltitude(Plane plane1, Plane plane2) {
         // Calculate the distance between the two planes
         int distance = Math.abs(plane1.getPosition().getX() - plane2.getPosition().getX())
                 + Math.abs(plane1.getPosition().getY() - plane2.getPosition().getY());
 
-        // If the distance is less than or equal to 100 blocks, raise the altitude of the first plane
+        // If the distance is less than or equal to 100 blocks, raise the altitude of
+        // the first plane
         if (distance <= 100) {
             int currentAltitude = plane1.getAltitude();
             plane1.setAltitude(currentAltitude + 100);
@@ -66,6 +68,7 @@ public class MobileElementManager {
 
         return false; // Return false to indicate that the planes are not close
     }
+
     public void movePlane(Plane plane) {
         lock.lock();
         int altitude = 300;
@@ -91,7 +94,6 @@ public class MobileElementManager {
                     } else if (plane.getTrajBlc() == 4) {
                         newPosition = trajectBoucle.T4();
                     }
-
                     // Set the new position of the plane
                     plane.setPosition(newPosition);
                     // Set the new altitude of the plane
@@ -101,20 +103,30 @@ public class MobileElementManager {
                     // Set iter of the Boucle
                     plane.setIterBoucle(plane.getIterBoucle() + 1);
                 }
-
             }
-
-
             // Si l'avion est à destination
             else if (plane.isLanded()) {
+                // utiliser les methodes land et endLanding de la classe Airport
+                try {
+                    airDest.land();
+                    System.out.println("L'avion " + plane.getName() + " a decole de l'aeroport "
+                            + airDest.getName() + " à la position " + airDest.getPosition()
+                            + " et il a notifié les autres qu'il est parti !");
+                } catch (InterruptedException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+                airDest.endLanding();
+                // Si l'avion est à l'atterrissage
                 airDest.removePlane(plane);
                 plane.setAltitude(0);
                 Airport rdmAprt = airports.get((int) (Math.random() * airports.size()));
-                while (rdmAprt == plane.getDestAirport() ) {
+                while (rdmAprt == plane.getDestAirport()) {
                     rdmAprt = airports.get((int) (Math.random() * airports.size()));
                 }
                 plane.setDestAirport(rdmAprt);
                 plane.setLanded(false);
+
             } else if (!plane.isLanded() && !airDest.isFull()) {
                 // Get the current position of the plane
                 Block currentPosition = plane.getPosition();
@@ -153,9 +165,6 @@ public class MobileElementManager {
                     plane.setLanded(true);
                     plane.setAltitude(0);
                     airDest.addPlane(plane);
-                    // Get the airport
-                    // Nouvelle destination à generer...
-
                 }
             }
             // Traject of the plane if the airport is full
@@ -177,62 +186,58 @@ public class MobileElementManager {
                 plane.setIterBoucle(0);
                 //
                 plane.setBoucle(true);
-
             }
 
-            //Verifier si il ya un croisement entre avion
-            for(Plane plane1:planes){
-                if (plane1==plane){
+            // Verifier si il ya un croisement entre avion
+            for (Plane plane1 : planes) {
+                if (plane1 == plane) {
                     continue;
                 }
                 int dX = plane.getPosition().x - plane1.getPosition().x;
                 int dY = plane.getPosition().y - plane1.getPosition().y;
-
-
                 double dist = Math.sqrt(Math.pow(dX, 2) + Math.pow(dY, 2));
-
                 // changement d'altitude en cas de proximité dangereuse
-                if(dist < 50) {
+                if (dist < 50) {
                     while (true) {
 
-                        if (threadAvions.get(plane).getPriorityflight() > threadAvions.get(plane1).getPriorityflight()) {
+                        if (threadAvions.get(plane).getPriorityflight() > threadAvions.get(plane1)
+                                .getPriorityflight()) {
                             plane.setAltitude(plane.getAltitude() + 50);
                             plane1.setPosCollision(-1);
                             break;
-                        } else if (threadAvions.get(plane).getPriorityflight() < threadAvions.get(plane1).getPriorityflight()) {
+                        } else if (threadAvions.get(plane).getPriorityflight() < threadAvions.get(plane1)
+                                .getPriorityflight()) {
                             plane.setAltitude(plane.getAltitude() - 50);
                             plane1.setPosCollision(1);
                             break;
-                        } else if (threadAvions.get(plane).getPriorityflight() == threadAvions.get(plane1).getPriorityflight()) {
+                        } else if (threadAvions.get(plane).getPriorityflight() == threadAvions.get(plane1)
+                                .getPriorityflight()) {
                             threadAvions.get(plane).setPriorityflight((Math.random() * 50));
                             continue;
                         }
                     }
-                }else if(dist>=50){
+                } else if (dist >= 50) {
                     plane1.setPosCollision(0);
                 }
             }
-
             for (int i = 0; i < planes.size(); i++) {
-                for (int  j = 0; j < i; j++) {
-                      Plane plane1 = planes.get(i);
-                      Plane plane2 = planes.get(j);
-                     int distance = Math.abs(plane1.getPosition().getX() - plane2.getPosition().getX())
+                for (int j = 0; j < i; j++) {
+                    Plane plane1 = planes.get(i);
+                    Plane plane2 = planes.get(j);
+                    int distance = Math.abs(plane1.getPosition().getX() - plane2.getPosition().getX())
                             + Math.abs(plane1.getPosition().getY() - plane2.getPosition().getY());
-
-                    // If the distance is less than or equal to 100 blocks, raise the altitude of the first plane
-                    if (distance <= 10 && plane1.close==0) {
-                     //   plane1.setPlanePic(plane1.p1);
-                       // plane2.setPlanePic(plane1.p1);
-                        System.out.println(plane1.getName() + "" + plane2.getName());
+                    // If the distance is less than or equal to 100 blocks, raise the altitude of
+                    // the first plane
+                    if (distance <= 10 && plane1.close == 0) {
+                        // plane1.setPlanePic(plane1.p1);
+                        // plane2.setPlanePic(plane1.p1);
                         plane1.close = 1;
                         plane1.setAltitude(plane1.getAltitude() + 100);
                         // Return true to indicate that the planes are close
                     }
                     if (distance > 10 && plane1.close == 1) {
-                      //  plane1.setPlanePic(plane1.p2);
-                      //  plane2.setPlanePic(plane1.p1);
-
+                        // plane1.setPlanePic(plane1.p2);
+                        // plane2.setPlanePic(plane1.p1);
 
                         plane1.close = 0;
                     }

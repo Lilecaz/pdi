@@ -3,6 +3,7 @@ package engine.mobile;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.LinkedList;
 import java.util.List;
 
 import javax.imageio.ImageIO;
@@ -14,6 +15,8 @@ public class Airport extends MobileElement {
     private int capacity;
     private int currentCapacity;
     private List<Plane> planes;
+    private boolean isLanding;
+    private boolean planeHasLanded = false;
     public static BufferedImage AirpPic;
 
     static {
@@ -29,6 +32,9 @@ public class Airport extends MobileElement {
         this.capacity = capacity;
         this.name = name;
         this.currentCapacity = 0;
+        this.planes = new LinkedList<>();
+        this.isLanding = false;
+        new Object();
     }
 
     public BufferedImage getAirpPic() {
@@ -53,12 +59,12 @@ public class Airport extends MobileElement {
 
     public void addPlane(Plane plane) {
         currentCapacity++;
-
-        // planes.add(plane);
+        planes.add(plane);
     }
 
     public void removePlane(Plane plane) {
         currentCapacity--;
+        planes.remove(plane);
     }
 
     public boolean isOnAirport(Block block) {
@@ -72,6 +78,37 @@ public class Airport extends MobileElement {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    /**
+     * Demande à un avion de se poser sur l'aéroport.
+     * Si la piste est libre, l'avion est autorisé à atterrir immédiatement.
+     * Sinon, l'avion attend que la piste se libère.
+     * 
+     * @param plane l'avion qui demande à atterrir
+     * @return true si l'avion a pu atterrir, false sinon
+     */
+    public synchronized void land() throws InterruptedException {
+        while (currentCapacity <= 0 || planeHasLanded) {
+            wait();
+        }
+        currentCapacity--;
+        planeHasLanded = true;
+        notifyAll();
+    }
+
+    public synchronized void endLanding() {
+        currentCapacity++;
+        planeHasLanded = false;
+        notifyAll();
+    }
+
+    public boolean isLanding() {
+        return isLanding;
+    }
+
+    public void setLanding(boolean isLanding) {
+        this.isLanding = isLanding;
     }
 
 }
