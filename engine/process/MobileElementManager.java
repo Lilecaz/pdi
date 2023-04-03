@@ -126,7 +126,6 @@ public class MobileElementManager {
                 }
                 plane.setDestAirport(rdmAprt);
                 plane.setLanded(false);
-
             } else if (!plane.isLanded() && !airDest.isFull()) {
                 // Get the current position of the plane
                 Block currentPosition = plane.getPosition();

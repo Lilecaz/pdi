@@ -11,17 +11,15 @@ import engine.mobile.Airport;
 
 public class GameBuilder extends JPanel {
 
-    private List<Block> usualAirportPlace;
-
     public static TestMap buildMap() {
         return new TestMap(400, 400);
     }
 
-    public static MobileElementManager buildMobileElementManager(TestMap map, int nbPlanes, int nbAirports) throws IOException {
+    public static MobileElementManager buildMobileElementManager(TestMap map, int nbPlanes, int nbAirports)
+            throws IOException {
         MobileElementManager manager = new MobileElementManager(map);
         initializeAirports(manager);
         initializePlanes(manager);
-
         return manager;
     }
 

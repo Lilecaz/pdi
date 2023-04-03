@@ -1,8 +1,5 @@
 package engine.process;
 
-import java.util.List;
-
-import engine.mobile.Airport;
 import engine.mobile.Plane;
 
 public class ThreadAvion extends Thread {
@@ -13,7 +10,7 @@ public class ThreadAvion extends Thread {
     public ThreadAvion(Plane plane, MobileElementManager manager) {
         this.plane = plane;
         this.manager = manager;
-        this.priorityflight=(Math.random() * 50);
+        this.priorityflight = (Math.random() * 50);
     }
 
     public double getPriorityflight() {
@@ -26,10 +23,10 @@ public class ThreadAvion extends Thread {
 
     @Override
     public void run() {
-        while (true){
+        while (true) {
             try {
                 Thread.sleep(plane.getSpeed());
-                if (plane.isLanded()){
+                if (plane.isLanded()) {
                     Thread.sleep(3000);
 
                 }
