@@ -13,7 +13,8 @@ Pour lancer l'application, suivez ces étapes :
 
 2. Ouvrez le projet dans votre IDE:
     Utilisez votre IDE préféré afin d'ouvrir le projet
-3.Exécutez l'application:
+   
+3. Exécutez l'application:
     - Localisez la classe "PlaneAirportInputGui" qui se trouve dans le package 'main'.
     - Exécutez cette classe pour démarrer l'application.
 
