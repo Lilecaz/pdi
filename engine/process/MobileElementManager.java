@@ -1,10 +1,8 @@
 package engine.process;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.concurrent.locks.Lock;
+import java.util.HashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import engine.map.Block;
@@ -14,275 +12,185 @@ import engine.mobile.Plane;
 
 public class MobileElementManager {
     private TestMap map;
-
-    private List<Plane> planes = new ArrayList<Plane>();
-    private List<Airport> airports = new ArrayList<Airport>();
-
-    private Lock lock;
-    HashMap<Plane, ThreadAvion> threadAvions = new HashMap<Plane, ThreadAvion>();
-
-    public MobileElementManager() {
-        airports = new ArrayList<Airport>();
-        planes = new CopyOnWriteArrayList<Plane>(); // remplacer ArrayList par CopyOnWriteArrayList
-    }
+    private List<Plane> planes;
+    private List<Airport> airports;
+    
+    // NOUVEAU : Liste des logs (Thread-safe)
+    private List<String> logs = new CopyOnWriteArrayList<>();
+    
+    private HashMap<Plane, ThreadAvion> threadAvions = new HashMap<>();
+    private boolean isPaused = false;
+    private final Object pauseLock = new Object();
 
     public MobileElementManager(TestMap map) {
         this.map = map;
-        lock = new ReentrantLock();
+        this.airports = new ArrayList<>();
+        this.planes = new CopyOnWriteArrayList<>();
     }
 
-    public void addPlane(Plane plane) {
-        lock.lock();
-        try {
-            planes.add(plane);
-        } finally {
-            lock.unlock();
-        }
+    public void addPlane(Plane plane) { planes.add(plane); }
+    public void addAirport(Airport a) { airports.add(a); }
+    
+    public List<Plane> getPlanes() { return planes; }
+    public List<Airport> getAirports() { return airports; }
+    
+    // NOUVEAU : Getter pour les logs
+    public List<String> getLogs() { return logs; }
 
+    // Ajoute un log en évitant les doublons consécutifs (Anti-spam)
+    public void addLog(String message) {
+        if (logs.isEmpty() || !logs.get(logs.size() - 1).equals(message)) {
+            logs.add(message);
+            // On garde seulement les 10 derniers logs pour pas saturer l'écran
+            if (logs.size() > 10) logs.remove(0);
+        }
     }
 
     public void flight(Plane plane) {
-        lock.lock();
-        try {
-            ThreadAvion thread = new ThreadAvion(plane, this);
-            threadAvions.put(plane, thread);
-            thread.start();
-        } finally {
-            lock.unlock();
+        ThreadAvion thread = new ThreadAvion(plane, this);
+        threadAvions.put(plane, thread);
+        thread.start();
+    }
+    
+    public void setPaused(boolean paused) {
+        synchronized (pauseLock) {
+            this.isPaused = paused;
+            if (!paused) pauseLock.notifyAll();
         }
-
     }
 
-    public boolean isCloseAndRaiseAltitude(Plane plane1, Plane plane2) {
-        // Calculate the distance between the two planes
-        int distance = Math.abs(plane1.getPosition().getX() - plane2.getPosition().getX())
-                + Math.abs(plane1.getPosition().getY() - plane2.getPosition().getY());
-
-        // If the distance is less than or equal to 100 blocks, raise the altitude of
-        // the first plane
-        if (distance <= 100) {
-            int currentAltitude = plane1.getAltitude();
-            plane1.setAltitude(currentAltitude + 100);
-            return true; // Return true to indicate that the planes are close
+    public void checkPause() throws InterruptedException {
+        synchronized (pauseLock) {
+            while (isPaused) pauseLock.wait();
         }
-
-        return false; // Return false to indicate that the planes are not close
     }
+
+    // --- Mouvements ---
 
     public void movePlane(Plane plane) {
-        lock.lock();
-        int altitude = 300;
-        try {
-            Airport airDest = plane.getDestAirport();
-            // The plane do a looping
-            if (plane.isBoucle()) {
-                int iter = plane.getIterBoucle();
-                if (iter == 120) {
-                    plane.setBoucle(false);
-                    plane.setIterBoucle(0);
-                } else {
-                    // Get the current position of the plane
-                    Block currentPosition = plane.getPosition();
-                    Block newPosition = currentPosition;
-                    TrajectBoucle trajectBoucle = new TrajectBoucle(currentPosition, map, iter);
-                    if (plane.getTrajBlc() == 1) {
-                        newPosition = trajectBoucle.T1();
-                    } else if (plane.getTrajBlc() == 2) {
-                        newPosition = trajectBoucle.T2();
-                    } else if (plane.getTrajBlc() == 3) {
-                        newPosition = trajectBoucle.T3();
-                    } else if (plane.getTrajBlc() == 4) {
-                        newPosition = trajectBoucle.T4();
-                    }
-                    // Set the new position of the plane
-                    plane.setPosition(newPosition);
-                    // Set the new altitude of the plane
-                    int altRelief = newPosition.getAltrelief();
-                    altitude = altitude + altRelief;
-                    plane.setAltitude(altitude);
-                    // Set iter of the Boucle
-                    plane.setIterBoucle(plane.getIterBoucle() + 1);
-                }
-            }
-            // Si l'avion est à destination
-            else if (plane.isLanded()) {
-                // utiliser les methodes land et endLanding de la classe Airport
-                try {
-                    airDest.land();
-                    System.out.println("L'avion " + plane.getName() + " a decole de l'aeroport "
-                            + airDest.getName() + " à la position " + airDest.getPosition()
-                            + " et il a notifié les autres qu'il est parti !");
-                } catch (InterruptedException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                }
-                airDest.endLanding();
-                // Si l'avion est à l'atterrissage
-                airDest.removePlane(plane);
-                plane.setAltitude(0);
-                Airport rdmAprt = airports.get((int) (Math.random() * airports.size()));
-                while (rdmAprt == plane.getDestAirport()) {
-                    rdmAprt = airports.get((int) (Math.random() * airports.size()));
-                }
-                plane.setDestAirport(rdmAprt);
-                plane.setLanded(false);
-            } else if (!plane.isLanded() && !airDest.isFull()) {
-                // Get the current position of the plane
-                Block currentPosition = plane.getPosition();
-                // Get the destination airport of the plane
-                Block destinationAirport = plane.getDestination();
-                // Get the line and column of the current position
-                int currentLine = currentPosition.getX();
-                int currentColumn = currentPosition.getY();
-                // Get the line and column of the destination airport
-                int destinationLine = destinationAirport.getX();
-                int destinationColumn = destinationAirport.getY();
-                // Calculate the new line and column of the plane
-                int newLine = currentLine;
-                int newColumn = currentColumn;
-                if (currentLine < destinationLine) {
-                    newLine = currentLine + 1;
-                } else if (currentLine > destinationLine) {
-                    newLine = currentLine - 1;
-                }
-                if (currentColumn < destinationColumn) {
-                    newColumn = currentColumn + 1;
-                } else if (currentColumn > destinationColumn) {
-                    newColumn = currentColumn - 1;
-                }
-                // Get the new position of the plane
-                Block newPosition = map.getBlock(newLine, newColumn);
-                // Set the new position of the plane
-                plane.setPosition(newPosition);
-                // Set the new altitude of the plane
-                int altRelief = newPosition.getAltrelief();
-                altitude = altitude + altRelief;
-                plane.setAltitude(altitude);
-                // If the plane is on the destination airport, set the plane
-                // landed
-                if (plane.isOnPosition(destinationAirport)) {
-                    plane.setLanded(true);
-                    plane.setAltitude(0);
-                    airDest.addPlane(plane);
-                }
-            }
-            // Traject of the plane if the airport is full
-            else if (!plane.isLanded() && plane.getDestAirport().isFull()) {
-                // Get the current position of the plane
-                Block currentPosition = plane.getPosition();
-                // Get the destination airport of the plane
-                Block destinationAirport = plane.getDestination();
-                //
-                if (currentPosition.x <= destinationAirport.x && currentPosition.y <= destinationAirport.y) {
-                    plane.setTrajBlc(1);
-                } else if (currentPosition.x > destinationAirport.x && currentPosition.y >= destinationAirport.y) {
-                    plane.setTrajBlc(2);
-                } else if (currentPosition.x < destinationAirport.x && currentPosition.y > destinationAirport.y) {
-                    plane.setTrajBlc(3);
-                } else if (currentPosition.x >= destinationAirport.x && currentPosition.y < destinationAirport.y) {
-                    plane.setTrajBlc(4);
-                }
-                plane.setIterBoucle(0);
-                //
-                plane.setBoucle(true);
-            }
-
-            // Verifier si il ya un croisement entre avion
-            for (Plane plane1 : planes) {
-                if (plane1 == plane) {
-                    continue;
-                }
-                int dX = plane.getPosition().x - plane1.getPosition().x;
-                int dY = plane.getPosition().y - plane1.getPosition().y;
-                double dist = Math.sqrt(Math.pow(dX, 2) + Math.pow(dY, 2));
-                // changement d'altitude en cas de proximité dangereuse
-                if (dist < 50) {
-                    while (true) {
-
-                        if (threadAvions.get(plane).getPriorityflight() > threadAvions.get(plane1)
-                                .getPriorityflight()) {
-                            plane.setAltitude(plane.getAltitude() + 50);
-                            plane1.setPosCollision(-1);
-                            break;
-                        } else if (threadAvions.get(plane).getPriorityflight() < threadAvions.get(plane1)
-                                .getPriorityflight()) {
-                            plane.setAltitude(plane.getAltitude() - 50);
-                            plane1.setPosCollision(1);
-                            break;
-                        } else if (threadAvions.get(plane).getPriorityflight() == threadAvions.get(plane1)
-                                .getPriorityflight()) {
-                            threadAvions.get(plane).setPriorityflight((Math.random() * 50));
-                            continue;
-                        }
-                    }
-                } else if (dist >= 50) {
-                    plane1.setPosCollision(0);
-                }
-            }
-            for (int i = 0; i < planes.size(); i++) {
-                for (int j = 0; j < i; j++) {
-                    Plane plane1 = planes.get(i);
-                    Plane plane2 = planes.get(j);
-                    int distance = Math.abs(plane1.getPosition().getX() - plane2.getPosition().getX())
-                            + Math.abs(plane1.getPosition().getY() - plane2.getPosition().getY());
-                    // If the distance is less than or equal to 100 blocks, raise the altitude of
-                    // the first plane
-                    if (distance <= 10 && plane1.close == 0) {
-                        // plane1.setPlanePic(plane1.p1);
-                        // plane2.setPlanePic(plane1.p1);
-                        plane1.close = 1;
-                        plane1.setAltitude(plane1.getAltitude() + 100);
-                        // Return true to indicate that the planes are close
-                    }
-                    if (distance > 10 && plane1.close == 1) {
-                        // plane1.setPlanePic(plane1.p2);
-                        // plane2.setPlanePic(plane1.p1);
-
-                        plane1.close = 0;
-                    }
-                }
-            }
-        } finally {
-            lock.unlock();
+        if (plane.isLanded()) {
+            handleLanding(plane);
+            return;
         }
 
+        Airport dest = plane.getDestAirport();
+        if (!dest.isFull()) {
+            moveStandard(plane);
+        } else {
+            moveHoldingPattern(plane);
+        }
+        handleCollisions(plane);
     }
 
-    public void addAirport(Airport airport) {
-        airports.add(airport);
+    private void moveStandard(Plane plane) {
+        Block current = plane.getPosition();
+        Block target = plane.getDestination();
+        
+        int nextX = current.getX();
+        int nextY = current.getY();
+        if (current.getX() < target.getX()) nextX++;
+        else if (current.getX() > target.getX()) nextX--;
+        if (current.getY() < target.getY()) nextY++;
+        else if (current.getY() > target.getY()) nextY--;
+
+        updatePlanePosition(plane, nextX, nextY);
+
+        if (plane.isOnPosition(target)) {
+            plane.setLanded(true);
+            plane.setAltitude(0);
+            plane.getDestAirport().addPlane(plane);
+            addLog(plane.getName() + " a atterri à " + plane.getDestAirport().getName());
+        }
     }
 
-    public void removePlane(Plane plane) {
-        planes.remove(plane);
+    private void moveHoldingPattern(Plane plane) {
+        if (!plane.isBoucle()) initBoucle(plane);
+
+        int iter = plane.getIterBoucle();
+        if (iter >= 120) {
+            plane.setBoucle(false);
+            plane.setIterBoucle(0);
+        } else {
+            TrajectBoucle traject = new TrajectBoucle(plane.getPosition(), map, iter);
+            Block nextPos = plane.getPosition();
+            switch(plane.getTrajBlc()) {
+                case 1: nextPos = traject.T1(); break;
+                case 2: nextPos = traject.T2(); break;
+                case 3: nextPos = traject.T3(); break;
+                case 4: nextPos = traject.T4(); break;
+            }
+            plane.setPosition(nextPos);
+            plane.setAltitude(300 + nextPos.getAltrelief());
+            plane.setIterBoucle(iter + 1);
+        }
     }
 
-    public void removeAirport(Airport airport) {
-        airports.remove(airport);
+    private void handleLanding(Plane plane) {
+        Airport currentAirport = plane.getDestAirport();
+        currentAirport.endLanding(); 
+        currentAirport.removePlane(plane);
+        
+        Airport newDest = currentAirport;
+        while (newDest == currentAirport) {
+            newDest = airports.get((int) (Math.random() * airports.size()));
+        }
+        
+        plane.setDestAirport(newDest);
+        plane.setLanded(false);
+        addLog(plane.getName() + " décolle vers " + newDest.getName());
     }
 
-    public List<Plane> getPlanes() {
-        return planes;
+    private void updatePlanePosition(Plane plane, int x, int y) {
+        Block nextBlock = map.getBlock(x, y);
+        plane.setPosition(nextBlock);
+        plane.setAltitude(300 + nextBlock.getAltrelief());
+    }
+    
+    private void initBoucle(Plane plane) {
+        Block pos = plane.getPosition();
+        Block dest = plane.getDestination();
+        int type = 4;
+        if (pos.x <= dest.x && pos.y <= dest.y) type = 1;
+        else if (pos.x > dest.x && pos.y >= dest.y) type = 2;
+        else if (pos.x < dest.x && pos.y > dest.y) type = 3;
+        
+        plane.setTrajBlc(type);
+        plane.setBoucle(true);
+        plane.setIterBoucle(0);
     }
 
-    public List<Airport> getAirports() {
-        return airports;
-    }
+    private void handleCollisions(Plane plane) {
+        for (Plane other : planes) {
+            if (other == plane) continue;
+            
+            double dist = Math.sqrt(Math.pow(plane.getPosition().x - other.getPosition().x, 2) + 
+                                    Math.pow(plane.getPosition().y - other.getPosition().y, 2));
 
-    public TestMap getMap() {
-        return map;
-    }
-
-    public void setMap(TestMap map) {
-        this.map = map;
+            if (dist < 10) {
+                ThreadAvion t1 = threadAvions.get(plane);
+                ThreadAvion t2 = threadAvions.get(other);
+                
+                if (t1 != null && t2 != null) {
+                    if (t1.getPriorityflight() > t2.getPriorityflight()) {
+                        plane.setAltitude(Math.min(1000, plane.getAltitude() + 50));
+                    } else {
+                        plane.setAltitude(Math.max(100, plane.getAltitude() - 50));
+                    }
+                }
+            } else {
+                int targetAlt = 300 + plane.getPosition().getAltrelief();
+                if (Math.abs(plane.getAltitude() - targetAlt) > 5) {
+                    if (plane.getAltitude() > targetAlt) plane.setAltitude(plane.getAltitude() - 2);
+                    else plane.setAltitude(plane.getAltitude() + 2);
+                }
+            }
+        }
     }
 
     public Plane getPlanebyName(String planeName) {
         for (Plane plane : planes) {
-            if (plane.getName().equals(planeName)) {
-                return plane;
-            }
+            if (plane.getName().equals(planeName)) return plane;
         }
         return null;
     }
-
 }

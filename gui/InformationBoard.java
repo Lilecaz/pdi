@@ -1,143 +1,107 @@
 package gui;
 
+import javax.swing.JPanel;
+import java.awt.*;
+import java.util.List;
 import engine.mobile.Airport;
 import engine.mobile.Plane;
 import engine.process.MobileElementManager;
 
-import java.awt.*;
-
-import javax.swing.*;
-
 public class InformationBoard extends JPanel {
+
     private MobileElementManager manager;
-    private JLabel label;
-    private JComboBox<String> comboBox;
-    private int counter;
-
-    private static final long serialVersionUID = 1L;
-    private static final int WIDTH = 200;
-    private static final int HEIGHT = 600;
-
-    private JPanel topPanel; // Panel for displaying text from init()
-    private JPanel bottomPanel; // Panel for displaying text from updateInfos()
+    private final Font FONT_TITLE = new Font("Segoe UI", Font.BOLD, 18);
+    private final Font FONT_SUBTITLE = new Font("Segoe UI", Font.BOLD, 14);
+    private final Font FONT_ITEM = new Font("Segoe UI", Font.PLAIN, 12);
+    private final Font FONT_LOG = new Font("Monospaced", Font.PLAIN, 11);
 
     public InformationBoard(MobileElementManager manager) {
         this.manager = manager;
-        this.counter = 0;
-
-        // Initialize the two panels
-        topPanel = new JPanel();
-        topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
-
-        bottomPanel = new JPanel();
-        bottomPanel.setLayout(new BoxLayout(bottomPanel, BoxLayout.Y_AXIS));
-
-        // Create a split pane to divide the InformationBoard panel into two halves
-        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, topPanel, bottomPanel);
-        splitPane.setResizeWeight(0.15); // Set the initial size of the two panels
-
-        // Add the split pane to the InformationBoard panel
-        this.setLayout(new BorderLayout());
-        this.add(splitPane, BorderLayout.CENTER);
+        this.setPreferredSize(new Dimension(300, 800));
+        this.setOpaque(true); 
     }
 
-    public void init() {
-        this.label = new JLabel("Information Board");
-        this.setSize(WIDTH, HEIGHT);
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g); 
+        Graphics2D g2 = (Graphics2D) g;
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // Add the label to the top panel
-        topPanel.add(label);
+        // --- TITRE ---
+        g2.setColor(Color.WHITE);
+        g2.setFont(FONT_TITLE);
+        g2.drawString("ÉTAT DES AÉROPORTS", 20, 30);
+        g2.setColor(new Color(52, 152, 219));
+        g2.fillRect(20, 35, 260, 2);
 
-        // Create the combobox and populate it with plane names
-        comboBox = new JComboBox<>();
-        for (Plane plane : manager.getPlanes()) {
-            if (plane == null) {
-                continue;
-            }
-            String planeName = plane.getName();
-            comboBox.addItem(planeName);
-        }
+        // --- LISTE AÉROPORTS & AVIONS AU SOL ---
+        int y = 60;
+        List<Airport> airports = manager.getAirports();
+        
+        for (Airport airport : airports) {
+            // Nom Aéroport
+            g2.setColor(new Color(46, 204, 113)); // Vert
+            g2.setFont(FONT_SUBTITLE);
+            g2.drawString( airport.getName(), 20, y);
+            y += 20;
 
-        // Add the combobox to the top panel
-        JPanel comboBoxPanel = new JPanel();
-        comboBoxPanel.add(new JLabel("Select plane: "));
-        comboBoxPanel.add(comboBox);
-        topPanel.add(comboBoxPanel);
+            // Avions dans cet aéroport
+            boolean hasPlane = false;
+            g2.setColor(new Color(200, 200, 200)); // Gris clair
+            g2.setFont(FONT_ITEM);
 
-        // Add the panel for displaying plane information to the top panel
-        JPanel planeInfoPanel = new JPanel();
-        planeInfoPanel.setLayout(new BoxLayout(planeInfoPanel, BoxLayout.Y_AXIS));
-        topPanel.add(planeInfoPanel);
-
-        // Add an action listener to the combobox
-        comboBox.addActionListener(e -> {
-            String planeName = (String) comboBox.getSelectedItem();
-            Plane plane = manager.getPlanebyName(planeName);
-            if (plane == null) {
-                return;
-            }
-            // Update the plane information panel
-            plane.setEmergency(true);
-            if (plane.isLanded()) {
-                planeInfoPanel.removeAll();
-                plane.setEmergency(false);
-                planeInfoPanel.add(new JLabel("Selected plane: " + plane.getName()));
-                planeInfoPanel.revalidate();
-                planeInfoPanel.repaint();
-            } else {
-                planeInfoPanel.removeAll();
-                planeInfoPanel.add(new JLabel("Selected plane: " + plane.getName()));
-                planeInfoPanel.add(new JLabel("Altitude: " + plane.getAltitude() + " m"));
-                planeInfoPanel.revalidate();
-                planeInfoPanel.repaint();
-            }
-        });
-    }
-
-    public void updateInfos() {
-        // Update information about planes in the panel
-
-        for (Plane plane : manager.getPlanes()) {
-            if (plane == null) {
-                continue;
-            } else {
-                if (plane.CloseTo(plane.getDestination())) {
-                    this.bottomPanel
-                            .add(new JLabel(plane.getName() + " has arrived at " + plane.getDestAirport().getName()));
-                    this.counter++;
-                }
-                for (Airport airport : manager.getAirports()) {
-                    if (plane.CloseTo(airport.getPosition()) && airport != plane.getDestAirport()) {
-                        this.bottomPanel.add(
-                                new JLabel(plane.getName() + " is now heading to " + plane.getDestAirport().getName()));
-                        this.counter++;
-                    }
+            for (Plane p : manager.getPlanes()) {
+                // Si l'avion est atterri ET que sa destination était cet aéroport
+                if (p.isLanded() && p.getDestAirport() == airport) {
+                    g2.drawString(p.getName(), 20, y);
+                    y += 15;
+                    hasPlane = true;
                 }
             }
+
+            if (!hasPlane) {
+                g2.setColor(Color.GRAY);
+                g2.setFont(new Font("Segoe UI", Font.ITALIC, 11));
+                g2.drawString("(Aucun avion au sol)", 20, y);
+                y += 15;
+            }
+            
+            y += 10; // Espace entre aéroports
         }
-        if (this.counter == 30) {
-            this.bottomPanel.removeAll();
-            this.counter = 0;
 
+        // --- ZONE DE LOGS (COLLISIONS) ---
+        // On dessine une boite en bas
+        int logAreaHeight = 250;
+        int logY = getHeight() - logAreaHeight - 20;
+        
+        g2.setColor(new Color(40, 40, 40));
+        g2.fillRect(10, logY, 280, logAreaHeight);
+        g2.setColor(Color.GRAY);
+        g2.drawRect(10, logY, 280, logAreaHeight);
+
+        // Titre Logs
+        g2.setColor(Color.WHITE);
+        g2.setFont(FONT_SUBTITLE);
+        g2.drawString("HISTORIQUE TRAFIC", 20, logY - 10);
+
+        // Affichage des messages
+        g2.setFont(FONT_LOG);
+        int textY = logY + 20;
+        
+        // On copie pour éviter les erreurs si la liste change pendant le dessin
+        List<String> logs = new java.util.ArrayList<>(manager.getLogs());
+        
+        for (String log : logs) {
+            // Couleur selon le type de message
+            if (log.contains("Conflit")) g2.setColor(new Color(231, 76, 60)); // Rouge
+            else if (log.contains("atterri")) g2.setColor(new Color(46, 204, 113)); // Vert
+            else g2.setColor(Color.WHITE);
+
+            g2.drawString(log, 15, textY);
+            textY += 15;
+            
+            // Si on dépasse la boite, on arrête
+            if (textY > getHeight() - 25) break;
         }
-
-    }
-
-    public void update() {
-        this.add(label);
-        this.revalidate();
-        this.repaint();
-    }
-
-    public void setLabel(JLabel label) {
-        this.label = label;
-    }
-
-    public JLabel getLabel() {
-        return label;
-    }
-
-    public MobileElementManager getManager() {
-        return manager;
     }
 }
